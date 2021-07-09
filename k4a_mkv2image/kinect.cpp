@@ -4,12 +4,14 @@
 #include <chrono>
 #include <fstream>
 
+
 // Constructor
 kinect::kinect( int argc, char* argv[] )
     : is_quit( true ),
       is_color( false ),
       is_depth( false ),
-      is_infrared( false )
+      is_infrared( false ),
+      is_body( false)
 {
     // Initialize
     initialize( argc, argv );
@@ -121,6 +123,11 @@ inline void kinect::initialize_playback()
 
     // Create Transformation
     transformation = k4a::transformation( calibration );
+
+    // Body Tracking
+    k4abt_tracker_configuration_t tracker_config = { K4ABT_SENSOR_ORIENTATION_DEFAULT };
+    tracker_config.processing_mode = K4ABT_TRACKER_PROCESSING_MODE_GPU;
+    tracker = k4abt::tracker::create(calibration, tracker_config);
 }
 
 // Initialize Save
@@ -146,6 +153,10 @@ void kinect::initialize_save()
         names.push_back( "infrared" );
         is_infrared = true;
     }
+    if( record_configuration.depth_track_enabled ){
+        names.push_back( "body" );
+        is_body = true;
+    }
 
     for( const std::string& name : names ){
         filesystem::path sub_directory = directory.generic_string() + "/" + name;
@@ -163,6 +174,9 @@ void kinect::initialize_save()
     }
     if( is_infrared ){
         infrared_thread = std::thread( &kinect::export_infrared, this );
+    }
+    if( is_body ){
+        body_thread = std::thread( &kinect::export_body, this );
     }
 }
 
@@ -266,6 +280,39 @@ void kinect::export_infrared()
     }
 }
 
+// Export Body
+void kinect::export_body(){
+  is_quit = false;
+  uint64_t index = 0;
+
+  while( !( is_quit && body_queue.empty() ) ){
+        // Pop Queue
+        std::pair<std::map<int, std::vector<float>>, int64_t> body;
+        bool result = body_queue.try_pop( body );
+        if( !result ){
+            std::this_thread::yield();
+            continue;
+        }
+
+        // Write json
+        std::string fn = cv::format( "%s/body/%06d_%011d.json", directory.generic_string().c_str(), index++, body.second );
+        std::ofstream ofs(fn);
+        std::string psep = "";
+        ofs << "{";
+        for(auto person: body.first){
+          ofs << psep;
+          ofs << "\"" << person.first << "\": [";
+          std::string sep = "";
+          for(auto j: person.second){
+            ofs << sep << j;
+            sep = ",";
+          }
+          ofs << "]";
+        }
+        ofs << psep << "}";
+    }
+}
+
 // Run
 void kinect::run()
 {
@@ -309,6 +356,9 @@ void kinect::update()
         update_transformation();
     }
 
+    // Update Bodytracking
+    update_body();
+
     // Release Capture Handle
     capture.reset();
 }
@@ -322,6 +372,9 @@ inline void kinect::update_frame()
         // EOF
         std::exit( EXIT_SUCCESS );
     }
+
+    // Get Body
+    bool queue_capture_result = tracker.enqueue_capture(capture);
 }
 
 // Update Color
@@ -397,6 +450,32 @@ inline void kinect::update_transformation()
     }
 
     depth_queue.push( std::make_pair( std::vector<uint16_t>( reinterpret_cast<uint16_t*>( transformed_depth_image.get_buffer() ), reinterpret_cast<uint16_t*>( transformed_depth_image.get_buffer() + transformed_depth_image.get_size() ) ), depth_image.get_device_timestamp().count() ) );
+}
+
+// Update body
+void kinect::update_body(){
+    if( !depth_image.handle() ){
+        return;
+    }
+
+    k4abt::frame body_frame = NULL;
+    bool pop_frame_result = tracker.pop_result(&body_frame);
+
+    int num = body_frame.get_num_bodies();
+    std::map<int, std::vector<float>> b;
+    for(int i=0; i < num; i++){
+      k4abt_body_t bt = body_frame.get_body(i);
+      std::vector<float> skeleton;
+      for(int j=0; j < K4ABT_JOINT_COUNT; j++){
+        for(int k=0; k<3; k++){
+          skeleton.push_back(bt.skeleton.joints[j].position.v[k]);
+        }
+        skeleton.push_back(bt.skeleton.joints[j].confidence_level);
+      }
+      b[bt.id] = skeleton;
+    }
+
+    body_queue.push( std::make_pair(b, depth_image.get_device_timestamp().count() ) );
 }
 
 // Draw

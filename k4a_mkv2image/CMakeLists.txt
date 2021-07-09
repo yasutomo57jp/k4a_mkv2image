@@ -41,15 +41,17 @@ set_property( DIRECTORY PROPERTY VS_STARTUP_PROJECT "k4a_mkv2image" )
 # Find Package
 find_package( OpenCV REQUIRED )
 find_package( k4a REQUIRED )
+find_package( k4abt REQUIRED )
 find_package( k4arecord REQUIRED )
 if(NOT WIN32)
   find_package( TBB REQUIRED )
 endif()
 
 # Set Package to Project
-if( k4a_FOUND AND k4arecord_FOUND AND OpenCV_FOUND )
+if( k4a_FOUND AND k4arecord_FOUND AND OpenCV_FOUND AND k4abt_FOUND)
   target_link_libraries( k4a_mkv2image k4a::k4a )
   target_link_libraries( k4a_mkv2image k4a::k4arecord )
+  target_link_libraries( k4a_mkv2image k4abt )
   target_link_libraries( k4a_mkv2image ${OpenCV_LIBS} )
   target_link_libraries( k4a_mkv2image ${FILESYSTEM} )
 endif()

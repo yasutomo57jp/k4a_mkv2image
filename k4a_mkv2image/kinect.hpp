@@ -2,6 +2,7 @@
 #define __KINECT__
 
 #include <k4a/k4a.hpp>
+#include <k4abt.hpp>
 #include <k4arecord/playback.hpp>
 #include <opencv2/opencv.hpp>
 
@@ -39,6 +40,9 @@ private:
     k4a::transformation transformation;
     k4a_record_configuration_t record_configuration;
 
+    // Body Tracking
+    k4abt::tracker tracker;
+
     // Color
     k4a::image color_image;
     cv::Mat color;
@@ -54,6 +58,10 @@ private:
     cv::Mat infrared;
     bool is_infrared;
 
+    // Infrared
+    std::map<int, std::vector<float>> body;
+    bool is_body;
+
     // Transformed
     k4a::image transformed_depth_image;
     cv::Mat transformed_depth;
@@ -63,9 +71,11 @@ private:
     std::thread color_thread;
     std::thread depth_thread;
     std::thread infrared_thread;
+    std::thread body_thread;
     concurrency::concurrent_queue<std::pair<std::vector<uint8_t>, int64_t>> color_queue;
     concurrency::concurrent_queue<std::pair<std::vector<uint16_t>, int64_t>> depth_queue;
     concurrency::concurrent_queue<std::pair<std::vector<uint16_t>, int64_t>> infrared_queue;
+    concurrency::concurrent_queue<std::pair<std::map<int, std::vector<float>>, int64_t>> body_queue;
 
     // Option
     filesystem::path mkv_file;
@@ -119,6 +129,9 @@ private:
     // Export Infrared
     void export_infrared();
 
+    // Export Body
+    void export_body();
+
     // Update Frame
     void update_frame();
 
@@ -133,6 +146,9 @@ private:
 
     // Update Transformation
     void update_transformation();
+
+    // Update Body
+    void update_body();
 
     // Draw Color
     void draw_color();
