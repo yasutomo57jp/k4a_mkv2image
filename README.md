@@ -1,7 +1,8 @@
 k4a_mkv2image
 =============
-This is convert tool that works on cross-platform (Windows, Linux) for Azure Kinect.  
-This tool converts all data of each stream types (Color, Depth, Infrared) that contained in mkv file to image file.  
+This is the extended version of the original UnaNancyOwen/k4a_mkv2image.
+This tool converts all data of each stream types (Color, Depth, Infrared) that contained in mkv file to image file, and estimate human body using k4abt library.  
+
 
 Sample
 ------
@@ -29,9 +30,13 @@ file
   |   |-000002_00000000066.png
   |
   |-infrared
-      |-000000_00000000000.jpg
-      |-000001_00000000033.jpg
-      |-000002_00000000066.jpg
+  |   |-000000_00000000000.jpg
+  |   |-000001_00000000033.jpg
+  |   |-000002_00000000066.jpg
+  +-body
+      |-000000_00000000000.json
+      |-000001_00000000033.json
+      |-000002_00000000066.json
 ```
 
 Option
@@ -48,6 +53,7 @@ Environment
 -----------
 * Visual Studio 2017/2019 / GCC 7.4 / Clang 6.0 (require <code>\<filesystem\></code> supported) 
 * Azure Kinect Sensor SDK v1.3.0 (or later)
+* Azure Kinect Body Tracking SDK v1.1 (or later)
 * OpenCV 4.1.2 (or later)
 * CMake 3.15.4 (latest release is preferred)
 * Intel Thread Building Blocks (latest release is preferred)
@@ -61,6 +67,11 @@ Distributed under the [MIT License](http://www.opensource.org/licenses/mit-licen
 
 Contact
 -------
+yasutomo57jp
+    * <http://yasutomo57jp.github.io>
+
+
+Original  
 * Tsukasa Sugiura  
     * <t.sugiura0204@gmail.com>  
     * <http://unanancyowen.com>  
