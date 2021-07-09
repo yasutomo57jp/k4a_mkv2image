@@ -67,7 +67,7 @@ Distributed under the [MIT License](http://www.opensource.org/licenses/mit-licen
 
 Contact
 -------
-yasutomo57jp
+* yasutomo57jp
     * <http://yasutomo57jp.github.io>
 
 
