@@ -18,7 +18,7 @@ endif()
 
 # Project
 project( k4a_mkv2image LANGUAGES CXX )
-add_executable( k4a_mkv2image version.h util.h kinect.hpp kinect.cpp main.cpp )
+add_executable( k4a_mkv2image version.h util.h kinect.hpp kinect.cpp main.cpp FloorDetector.cpp PointCloudGenerator.cpp)
 
 # (Option) Build with Static CRT
 if(WIN32)

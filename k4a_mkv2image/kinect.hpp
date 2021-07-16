@@ -5,6 +5,8 @@
 #include <k4abt.hpp>
 #include <k4arecord/playback.hpp>
 #include <opencv2/opencv.hpp>
+#include "FloorDetector.h"
+#include "PointCloudGenerator.h"
 
 #if __has_include(<concurrent_queue.h>)
 #include <concurrent_queue.h>
@@ -58,9 +60,11 @@ private:
     cv::Mat infrared;
     bool is_infrared;
 
-    // Infrared
+    // Body
     std::map<int, std::vector<float>> body;
     bool is_body;
+    bool is_body_normalize; // orthogonal to the floor plane
+    Samples::FloorDetector floorDetector;
 
     // Transformed
     k4a::image transformed_depth_image;

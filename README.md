@@ -3,6 +3,7 @@ k4a_mkv2image
 This is the extended version of the original UnaNancyOwen/k4a_mkv2image.
 This tool converts all data of each stream types (Color, Depth, Infrared) that contained in mkv file to image file, and estimate human body using k4abt library.  
 
+Some part of the codes are borrowed from [Azure-Kinect-Samples](https://github.com/microsoft/Azure-Kinect-Samples).
 
 Sample
 ------
@@ -48,6 +49,7 @@ Option
 | -t     | enable transform depth to color camera. <code>false</code> is not transform. (bool)   |
 | -q     | jpeg encoding quality for infrared. [0-100]                                           |
 | -d     | display each images on window. <code>false</code> is not display. (bool)              |
+| -n     | normalize poses orthogonal to the estimated floor plane. (bool)                       |
 
 Environment
 -----------

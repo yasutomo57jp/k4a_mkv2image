@@ -11,7 +11,8 @@ kinect::kinect( int argc, char* argv[] )
       is_color( false ),
       is_depth( false ),
       is_infrared( false ),
-      is_body( false)
+      is_body( false),
+      is_body_normalize(false)
 {
     // Initialize
     initialize( argc, argv );
@@ -45,6 +46,7 @@ void kinect::initialize_parameter( int argc, char* argv[] )
         "{ input i     |       | path to input mkv file. (required)                                                                                           }"
         "{ scaling s   | false | enable depth and infrared scaling to 8bit image. false is raw 16bit image. (bool)                                            }"
         "{ transform t | false | enable transform depth image to color camera. (bool)                                                                         }"
+        "{ bodynormalize n | false | enable body normalization orthogonal to the floor plane. (bool)                                                          }"
         "{ quality q   | 95    | jpeg encoding quality for infrared. [0-100]                                                                                  }"
         "{ display d   | false | display each images on window. false is not display. display images are always scaled regardless of the scaling flag. (bool) }";
     cv::CommandLineParser parser( argc, argv, keys );
@@ -88,6 +90,14 @@ void kinect::initialize_parameter( int argc, char* argv[] )
         is_transform = parser.get<bool>( "transform" );
     }
 
+    // Get BodyNormalization Flag (Option)
+    if( !parser.has( "bodynormalize" ) ){
+        is_body_normalize = false;
+    }
+    else{
+        is_body_normalize = parser.get<bool>( "bodynormalize" );
+    }
+
     // Get JPEG Quality (Option)
     if( !parser.has( "quality" ) ){
         params = { cv::IMWRITE_JPEG_QUALITY, 95 };
@@ -128,6 +138,7 @@ inline void kinect::initialize_playback()
     k4abt_tracker_configuration_t tracker_config = { K4ABT_SENSOR_ORIENTATION_DEFAULT };
     tracker_config.processing_mode = K4ABT_TRACKER_PROCESSING_MODE_GPU;
     tracker = k4abt::tracker::create(calibration, tracker_config);
+
 }
 
 // Initialize Save
@@ -155,6 +166,10 @@ void kinect::initialize_save()
     }
     if( record_configuration.depth_track_enabled ){
         names.push_back( "body" );
+        is_body = true;
+    }
+    if( record_configuration.depth_track_enabled ){
+        names.push_back( "body_normalize" );
         is_body = true;
     }
 
@@ -460,22 +475,59 @@ void kinect::update_body(){
 
     k4abt::frame body_frame = NULL;
     bool pop_frame_result = tracker.pop_result(&body_frame);
+    bool normalized = false;
 
-    int num = body_frame.get_num_bodies();
-    std::map<int, std::vector<float>> b;
-    for(int i=0; i < num; i++){
-      k4abt_body_t bt = body_frame.get_body(i);
-      std::vector<float> skeleton;
-      for(int j=0; j < K4ABT_JOINT_COUNT; j++){
-        for(int k=0; k<3; k++){
-          skeleton.push_back(bt.skeleton.joints[j].position.v[k]);
+    if(is_body_normalize){
+      k4a_imu_sample_t imu_sample;
+      playback.get_next_imu_sample(&imu_sample);
+      const int downsampleStep = 2;
+      const size_t minimumFloorPointCount = 1024 / (downsampleStep * downsampleStep);
+      Samples::PointCloudGenerator pointCloudGenerator{calibration};
+      pointCloudGenerator.Update(depth_image.handle());
+      const auto cloudPoints = pointCloudGenerator.GetCloudPoints(downsampleStep);
+      const auto& maybeFloorPlane = floorDetector.TryDetectFloorPlane(cloudPoints, imu_sample, calibration, minimumFloorPointCount);
+
+      if(maybeFloorPlane.has_value()){
+        int num = body_frame.get_num_bodies();
+        std::map<int, std::vector<float>> b;
+        for(int i=0; i < num; i++){
+          k4abt_body_t bt = body_frame.get_body(i);
+          std::vector<float> skeleton;
+          for(int j=0; j < K4ABT_JOINT_COUNT; j++){
+            Samples::Vector v(bt.skeleton.joints[j].position);
+            auto z = maybeFloorPlane->ProjectVector(v);
+            auto others = v - z;
+
+            skeleton.push_back(others.X);
+            skeleton.push_back(others.Y);
+            skeleton.push_back(z.Z);
+            skeleton.push_back(bt.skeleton.joints[j].confidence_level);
+          }
+          b[bt.id] = skeleton;
         }
-        skeleton.push_back(bt.skeleton.joints[j].confidence_level);
-      }
-      b[bt.id] = skeleton;
-    }
 
-    body_queue.push( std::make_pair(b, depth_image.get_device_timestamp().count() ) );
+        body_queue.push( std::make_pair(b, depth_image.get_device_timestamp().count() ) );
+        normalized = true;
+      }else{
+        normalized = false;
+      }
+    }
+    if(! normalized){
+      int num = body_frame.get_num_bodies();
+      std::map<int, std::vector<float>> b;
+      for(int i=0; i < num; i++){
+        k4abt_body_t bt = body_frame.get_body(i);
+        std::vector<float> skeleton;
+        for(int j=0; j < K4ABT_JOINT_COUNT; j++){
+          for(int k=0; k < 3; k++){
+            skeleton.push_back(bt.skeleton.joints[j].position.v[k]);
+          }
+          skeleton.push_back(bt.skeleton.joints[j].confidence_level);
+        }
+        b[bt.id] = skeleton;
+      }
+      body_queue.push( std::make_pair(b, depth_image.get_device_timestamp().count() ) );
+    }
 }
 
 // Draw
