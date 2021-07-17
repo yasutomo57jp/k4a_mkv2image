@@ -495,12 +495,13 @@ void kinect::update_body(){
           std::vector<float> skeleton;
           for(int j=0; j < K4ABT_JOINT_COUNT; j++){
             Samples::Vector v(bt.skeleton.joints[j].position);
-            auto z = maybeFloorPlane->ProjectVector(v);
-            auto others = v - z;
+            const auto& normal = maybeFloorPlane->Normal;
+            const auto& p = normal * normal.Dot(v) / normal.SquareLength();
+            const auto& res = v - p;
 
-            skeleton.push_back(others.X);
-            skeleton.push_back(others.Y);
-            skeleton.push_back(z.Z);
+            skeleton.push_back(res.X);
+            skeleton.push_back(p.Y);
+            skeleton.push_back(res.Z);
             skeleton.push_back(bt.skeleton.joints[j].confidence_level);
           }
           b[bt.id] = skeleton;
