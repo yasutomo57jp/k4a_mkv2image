@@ -168,11 +168,6 @@ void kinect::initialize_save()
         names.push_back( "body" );
         is_body = true;
     }
-    if( record_configuration.depth_track_enabled ){
-        names.push_back( "body_normalize" );
-        is_body = true;
-    }
-
     for( const std::string& name : names ){
         filesystem::path sub_directory = directory.generic_string() + "/" + name;
         if( !filesystem::create_directories( sub_directory ) ){
