@@ -486,6 +486,8 @@ void kinect::update_body(){
       pointCloudGenerator.Update(depth_image.handle());
       const auto cloudPoints = pointCloudGenerator.GetCloudPoints(downsampleStep);
       const auto& maybeFloorPlane = floorDetector.TryDetectFloorPlane(cloudPoints, imu_sample, calibration, minimumFloorPointCount);
+      Samples::Vector camera_pos(0, 0, 0);
+      const auto& camera_height = maybeFloorPlane->AbsDistance(camera_pos) * 1000; // m -> mm
 
       if(maybeFloorPlane.has_value()){
         int num = body_frame.get_num_bodies();
@@ -500,7 +502,7 @@ void kinect::update_body(){
             const auto& res = v - p;
 
             skeleton.push_back(res.X);
-            skeleton.push_back(p.Y);
+            skeleton.push_back(p.Y + camera_height);
             skeleton.push_back(res.Z);
             skeleton.push_back(bt.skeleton.joints[j].confidence_level);
           }
