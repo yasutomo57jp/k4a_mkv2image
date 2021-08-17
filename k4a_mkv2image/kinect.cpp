@@ -319,7 +319,8 @@ void kinect::export_body(){
           }
           ofs << "]";
         }
-        ofs << psep << "}";
+        psep = ",";
+        ofs << "}";
     }
 }
 
